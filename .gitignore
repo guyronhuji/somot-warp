@@ -1,0 +1,16 @@
+# Data, results and papers stay local
+data/
+results/
+Papers/
+
+# Python / packaging
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Notebooks / editors / OS
+.ipynb_checkpoints/
+.DS_Store
+.claude/
