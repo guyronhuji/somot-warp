@@ -1,18 +1,23 @@
 [build-system]
-requires = ['setuptools>=68','wheel']
+requires = ['setuptools>=68', 'wheel']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name='somot-warp'
-version='0.2.1'
-description='SOM-clustered landmark OT + residual warping (sklearn API, anchorable)'
-readme='README.md'
-requires-python='>=3.9'
-dependencies=['numpy','scikit-learn','minisom','POT','scipy','pandas','tqdm','joblib']
+name = 'somot-warp'
+version = '0.3.0'
+description = 'SOMOTwarp: SOM-clustered landmark optimal transport + per-marker quantile warping for cytometry batch correction'
+readme = 'README.md'
+license = {text = 'MIT'}
+authors = [{name = 'Guy Ron'}]
+requires-python = '>=3.9'
+dependencies = ['numpy', 'scikit-learn', 'minisom', 'POT', 'scipy', 'pandas', 'tqdm', 'joblib', 'matplotlib']
+
+[project.urls]
+Homepage = 'https://github.com/guyronhuji/somot-warp'
 
 [project.scripts]
-somot-batch='somot_warp.cli:main'
-somot-apply='somot_warp.oos_cli:main'
+somot-batch = 'somot_warp.cli:main'
+somot-apply = 'somot_warp.oos_cli:main'
 
 [tool.setuptools]
 packages = ['somot_warp']

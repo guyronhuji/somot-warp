@@ -3,7 +3,7 @@
 Regenerate benchmark figures using saved results (Track B only, no anchor).
 Produces publication-ready PNGs in results/trussart/.
 """
-import sys, json, warnings
+import os, sys, json, warnings
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -14,9 +14,9 @@ from pathlib import Path
 
 warnings.filterwarnings('ignore')
 
-REPO = Path('/Users/ronguy/Dropbox/Work/CyTOF/Code/som_ot_warp_repo_anchor')
+REPO = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO / 'results' / 'trussart'
-FIG_DIR = Path('/Users/ronguy/Dropbox/Apps/Overleaf/CyPrep/figures')
+FIG_DIR = Path(os.environ.get('SOMOT_FIG_DIR', REPO / 'results' / 'figures'))
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Load saved metrics ──
@@ -35,7 +35,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / 'scripts'))
 from benchmark_public import load_trussart
 
-DATA_DIR = '/Users/ronguy/Dropbox/Work/CyTOF/TestDir/trussart_cytofruv/Norm_Raw_RUV1b_RUV3b_simult'
+DATA_DIR = os.environ.get('SOMOT_TRUSSART_DIR', str(REPO / 'data' / 'trussart'))
 X_full, y_batch_full, y_sample_full, y_celltype_full, markers = load_trussart(DATA_DIR)
 
 # Subsample same as notebook

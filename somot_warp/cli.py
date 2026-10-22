@@ -23,7 +23,11 @@ def main():
     ap.add_argument("--som_iters", type=int, default=8000)
     ap.add_argument("--landmarks", type=int, default=1200)
     ap.add_argument("--min_node", type=int, default=80)
-    ap.add_argument("--reg", type=float, default=0.1)
+    ap.add_argument("--reg", type=float, default=0.1,
+                    help="Sinkhorn entropy, relative to the median landmark cost (see --cost_scale)")
+    ap.add_argument("--cost_scale", default="median", choices=["median", "mean", "none"],
+                    help="scale the OT cost matrix per SOM node; 'none' = legacy absolute reg")
+    ap.add_argument("--ot_method", default="sinkhorn_stabilized")
     ap.add_argument("--unbalanced", action="store_true")
     ap.add_argument("--reg_m", type=float, default=5.0)
     ap.add_argument("--interp", default="soft", choices=["soft","hard"])
@@ -46,6 +50,7 @@ def main():
         som_grid=(mx,my), som_sigma=1.5, som_learning_rate=0.5,
         som_iters=args.som_iters, som_random_state=0, som_verbose=True,
         n_landmarks_total=args.landmarks, reg=args.reg, unbalanced=args.unbalanced, reg_m=args.reg_m,
+        cost_scale=None if args.cost_scale == "none" else args.cost_scale, ot_method=args.ot_method,
         interp=args.interp, soft_k=args.soft_k, soft_tau=args.soft_tau,
         anchor=args.anchor, alpha_ot=args.alpha_ot, alpha_warp=args.alpha_warp,
         output_scale=args.output_scale, min_node_size=args.min_node
@@ -72,3 +77,7 @@ def main():
         print("Saved model:", args.save_model)
 
     print(f"Saved: {args.outA}, {args.outB}, {args.report}")
+
+
+if __name__ == "__main__":
+    main()

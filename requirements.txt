@@ -6,3 +6,4 @@ minisom
 POT
 tqdm
 joblib
+matplotlib

@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "SOMOTwarp: SOM-clustered landmark optimal transport with per-marker quantile warping for cytometry batch correction"
+authors:
+  - family-names: Ron
+    given-names: Guy
+version: 0.3.0
+date-released: 2026-10-22
+license: MIT
+repository-code: https://github.com/guyronhuji/somot-warp

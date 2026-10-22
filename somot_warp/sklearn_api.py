@@ -15,6 +15,19 @@ def _cdist2(A, B):
     B2 = np.sum(B*B, axis=1, keepdims=True).T
     return A2 + B2 - 2*A@B.T
 
+def _cost_scale(M, how):
+    """Divisor that puts an OT cost matrix on a unit scale, making `reg` relative (None -> 1: absolute `reg`)."""
+    if how is None:
+        return 1.0
+    pos = M[M > 0]
+    if pos.size == 0:
+        return 1.0
+    if how == 'median':
+        return float(np.median(pos))
+    if how == 'mean':
+        return float(np.mean(pos))
+    raise ValueError("cost_scale must be 'median', 'mean' or None")
+
 def _quantile_warp_fit(x_ref, x_src, q_grid):
     xr = np.percentile(x_ref, q_grid)
     xs = np.percentile(x_src, q_grid)
@@ -32,6 +45,7 @@ class SOMOTWarpSKExact(BaseEstimator, TransformerMixin):
         som_grid=(10,10), som_sigma=1.5, som_learning_rate=0.5,
         som_iters=8000, som_random_state=0, som_verbose=False,
         n_landmarks_total=1200, reg=0.1, unbalanced=True, reg_m=5.0,
+        cost_scale='median', ot_method='sinkhorn_stabilized',
         interp='soft', soft_k=5, soft_tau=0.5, midpoint_ot=True,
         q_grid=None, midpoint_warp=True,
         min_node_size=80,
@@ -51,6 +65,8 @@ class SOMOTWarpSKExact(BaseEstimator, TransformerMixin):
         self.reg = reg
         self.unbalanced = unbalanced
         self.reg_m = reg_m
+        self.cost_scale = cost_scale
+        self.ot_method = ot_method
         self.interp = interp
         self.soft_k = soft_k
         self.soft_tau = soft_tau
@@ -155,6 +171,7 @@ class SOMOTWarpSKExact(BaseEstimator, TransformerMixin):
         Za_corr = Za_p.copy(); Zb_corr = Zb_p.copy()
         n_nodes = self.mx_ * self.my_
         self.nodes_.clear()
+        self.n_unmatched_landmarks_ = 0
         alphaA, alphaB = self._alphas_for_batches()
 
         for node in tqdm(range(n_nodes), disable=not self.som_verbose):
@@ -174,16 +191,26 @@ class SOMOTWarpSKExact(BaseEstimator, TransformerMixin):
             a_mass = np.bincount(kma.labels_, minlength=ka).astype(float); a_mass /= a_mass.sum()
             b_mass = np.bincount(kmb.labels_, minlength=kb).astype(float); b_mass /= b_mass.sum()
 
-            M = _cdist2(Ca, Cb).astype(np.float64)
+            # Costs are scaled per node (cost_scale) so `reg` is relative to the typical landmark distance; with an
+            # absolute reg the Sinkhorn kernel exp(-M/reg) underflows in high dimensions and the plan comes back empty.
+            M = np.maximum(_cdist2(Ca, Cb).astype(np.float64), 0.0)
+            M_ot = M / _cost_scale(M, self.cost_scale)
             if self.unbalanced:
-                T = ot.unbalanced.sinkhorn_unbalanced(a_mass, b_mass, M, reg=self.reg, reg_m=self.reg_m)
+                T = ot.unbalanced.sinkhorn_unbalanced(a_mass, b_mass, M_ot, reg=self.reg, reg_m=self.reg_m,
+                                                      method=self.ot_method)
             else:
-                T = ot.sinkhorn(a_mass, b_mass, M, reg=self.reg)
+                T = ot.sinkhorn(a_mass, b_mass, M_ot, reg=self.reg, method=self.ot_method)
+            T = np.nan_to_num(T, nan=0.0, posinf=0.0, neginf=0.0)
 
-            rows = T.sum(axis=1, keepdims=True) + 1e-12
-            cols = T.sum(axis=0, keepdims=True) + 1e-12
-            Ca_to_B = (T @ Cb) / rows
-            Cb_to_A = (T.T @ Ca) / cols.T
+            # A landmark that receives no transport mass keeps its own position (instead of collapsing to 0)
+            rows = T.sum(axis=1, keepdims=True)
+            cols = T.sum(axis=0, keepdims=True)
+            tiny = 1e-12 * max(float(T.sum()), 1e-300)
+            ok_a = rows[:, 0] > tiny
+            ok_b = cols[0] > tiny
+            Ca_to_B = np.where(ok_a[:, None], (T @ Cb) / np.maximum(rows, 1e-300), Ca)
+            Cb_to_A = np.where(ok_b[:, None], (T.T @ Ca) / np.maximum(cols.T, 1e-300), Cb)
+            self.n_unmatched_landmarks_ += int((~ok_a).sum() + (~ok_b).sum())
 
             nna = NearestNeighbors(n_neighbors=min(self.soft_k, ka)).fit(Ca)
             nnb = NearestNeighbors(n_neighbors=min(self.soft_k, kb)).fit(Cb)
